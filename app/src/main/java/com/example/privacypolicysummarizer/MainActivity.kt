@@ -21,9 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import androidx.core.graphics.createBitmap
 
@@ -33,6 +30,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val viewModel = InstalledAppsViewModel(application)
 
         appChangeReceiver = AppChangeReceiver {
@@ -44,11 +42,12 @@ class MainActivity : ComponentActivity() {
             addAction(Intent.ACTION_PACKAGE_REMOVED)
             addDataScheme("package")
         }
+
         registerReceiver(appChangeReceiver, intentFilter)
 
         setContent {
             PrivacyPolicySummarizerTheme {
-                AppNavigation(viewModel)
+                AppListScreen(viewModel)
             }
         }
     }
@@ -68,26 +67,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun AppNavigation(viewModel: InstalledAppsViewModel) {
-    val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "home") {
-        composable("home") {
-            HomeScreen(viewModel = viewModel, onAppClick = { app ->
-                // Navigate and pass the app package name
-                navController.navigate("summary/${app.packageName}")
-            })
-        }
-        composable("summary/{packageName}") { backStackEntry ->
-            val packageName = backStackEntry.arguments?.getString("packageName") ?: ""
-            AppSummaryScreen(packageName = packageName)
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: InstalledAppsViewModel, onAppClick: (App) -> Unit) {
+fun AppListScreen(viewModel: InstalledAppsViewModel) {
     val context = LocalContext.current
     val apps by viewModel.appsList.collectAsState()
 
@@ -110,7 +92,6 @@ fun HomeScreen(viewModel: InstalledAppsViewModel, onAppClick: (App) -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
-                        .clickable { onAppClick(app) }
                 ) {
                     val icon = app.loadIcon(context.packageManager)
                     val bitmap = icon.toBitmapSafely()
@@ -126,24 +107,6 @@ fun HomeScreen(viewModel: InstalledAppsViewModel, onAppClick: (App) -> Unit) {
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun AppSummaryScreen(packageName: String) {
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("App Summary") })
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            Text("Summary for package: $packageName")
-            // Add more UI elements to display the summary
         }
     }
 }
