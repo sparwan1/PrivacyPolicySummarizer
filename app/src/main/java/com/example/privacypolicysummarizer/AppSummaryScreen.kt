@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 
 data class SummaryItem(val riskLevel: String, val justification: String, val snippet: String)
@@ -28,7 +30,7 @@ val dummySummaryData = mapOf(
         justification = "The policy mentions that email addresses may be shared with marketing partners.",
         snippet = "We may share your email address with our trusted third-party affiliates for promotional purposes."
     ),
-    "Credit Card" to SummaryItem(
+    "Credit Card Number and Home Address" to SummaryItem(
         riskLevel = "Yellow",
         justification = "Used for billing only, not shared with third parties.",
         snippet = "We collect your credit card details to process your payments securely."
@@ -37,6 +39,41 @@ val dummySummaryData = mapOf(
         riskLevel = "Green",
         justification = "Used only to improve app experience, not shared externally.",
         snippet = "Location helps us personalize app content."
+    ),
+    "Social Security Number" to SummaryItem(
+        riskLevel = "Red",
+        justification = "The policy indicates the collection and exposure of SSNs, which are highly sensitive.",
+        snippet = "Social Security Numbers are handled with strict data protection measures."
+    ),
+    "Ads and Marketing" to SummaryItem(
+        riskLevel = "Yellow",
+        justification = "The policy outlines the use of personal data for targeted ads and marketing campaigns.",
+        snippet = "User data may be shared with marketing partners to deliver personalized advertisements."
+    ),
+    "Collecting PII of Children" to SummaryItem(
+        riskLevel = "Red",
+        justification = "The policy indicates the collection of children's personal data without sufficient safeguards.",
+        snippet = "Children's data is collected without verifiable parental consent, posing significant privacy risks."
+    ),
+    "Sharing with Law Enforcement" to SummaryItem(
+        riskLevel = "Yellow",
+        justification = "Data may be disclosed to law enforcement agencies under certain legal circumstances.",
+        snippet = "User data might be shared with law enforcement upon receiving a valid legal request."
+    ),
+    "Policy Change Notification" to SummaryItem(
+        riskLevel = "Green",
+        justification = "The policy includes provisions for notifying users about changes in data practices.",
+        snippet = "Users will be informed ahead of time if there are significant changes to privacy policies."
+    ),
+    "Control of Data" to SummaryItem(
+        riskLevel = "Green",
+        justification = "The policy provides users with options to manage their personal data.",
+        snippet = "Users have the right to access, correct, or delete their personal data as per the guidelines."
+    ),
+    "Data Aggregation" to SummaryItem(
+        riskLevel = "Yellow",
+        justification = "Data may be aggregated from multiple sources to create profiles.",
+        snippet = "User data might be combined and analyzed for trends and insights, impacting privacy."
     )
 )
 
@@ -57,8 +94,15 @@ val riskScoreMap = mapOf(
 
 val iconMap = mapOf(
     "Email Address" to Icons.Default.Email,
-    "Credit Card" to Icons.Default.Payment,
-    "Location" to Icons.Default.LocationOn
+    "Credit Card Number and Home Address" to Icons.Default.Payment,
+    "Location" to Icons.Default.LocationOn,
+    "Social Security Number" to Icons.Default.Security,
+    "Ads and Marketing" to Icons.Default.Campaign,
+    "Collecting PII of Children" to Icons.Default.Face, // or use another icon like Icons.Default.ChildCare if available
+    "Sharing with Law Enforcement" to Icons.Default.Gavel,
+    "Policy Change Notification" to Icons.Default.Notifications,
+    "Control of Data" to Icons.Default.Settings,
+    "Data Aggregation" to Icons.Default.BarChart
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +116,7 @@ fun AppSummaryScreen(packageName: String) {
         Column(
             modifier = Modifier
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             val context = LocalContext.current
@@ -89,7 +134,6 @@ fun AppSummaryScreen(packageName: String) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-
 
             dummySummaryData.forEach { (title, item) ->
                 ExpandableSummaryCard(title = title, item = item)
