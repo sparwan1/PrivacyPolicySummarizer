@@ -1,6 +1,7 @@
 package com.example.privacypolicysummarizer
 
 import android.content.BroadcastReceiver
+import androidx.compose.ui.Alignment
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -12,6 +13,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,8 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import androidx.core.graphics.createBitmap
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
+import android.content.pm.ApplicationInfo
 
 class MainActivity : ComponentActivity() {
 
@@ -47,7 +53,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PrivacyPolicySummarizerTheme {
-                AppListScreen(viewModel)
+                AppNavigation(viewModel)
             }
         }
     }
@@ -67,11 +73,32 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun AppNavigation(viewModel: InstalledAppsViewModel) {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "home") {
+        composable("home") {
+            HomeScreen(viewModel = viewModel, onAppClick = { app ->
+                navController.navigate("summary/${app.packageName}")
+            })
+        }
+        composable("summary/{packageName}") { backStackEntry ->
+            val packageName = backStackEntry.arguments?.getString("packageName") ?: ""
+            AppSummaryScreen(packageName = packageName)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppListScreen(viewModel: InstalledAppsViewModel) {
+fun HomeScreen(viewModel: InstalledAppsViewModel, onAppClick: (ApplicationInfo) -> Unit) {
     val context = LocalContext.current
-    val apps by viewModel.appsList.collectAsState()
+    val allApps by viewModel.appsList.collectAsState()
+    var query by remember { mutableStateOf("") }
+
+    val filteredApps = allApps.filter {
+        it.loadLabel(context.packageManager).toString().contains(query, ignoreCase = true)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadInstalledApps()
@@ -79,31 +106,46 @@ fun AppListScreen(viewModel: InstalledAppsViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Apps") })
+            TopAppBar(title = { Text("Installed Apps") })
         }
     ) { paddingValues ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            items(apps) { app ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    val icon = app.loadIcon(context.packageManager)
-                    val bitmap = icon.toBitmapSafely()
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Search apps...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                singleLine = true
+            )
 
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(app.loadLabel(context.packageManager).toString())
+            LazyColumn {
+                items(filteredApps) { app ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onAppClick(app) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val icon = app.loadIcon(context.packageManager)
+                        val bitmap = icon.toBitmapSafely()
+
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = app.loadLabel(context.packageManager).toString(),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
