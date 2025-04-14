@@ -24,28 +24,39 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
 import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import android.content.pm.ApplicationInfo
+import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
-    private var appChangeReceiver: AppChangeReceiver? = null
+    private lateinit var appChangeReceiver: AppChangeReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val viewModel = InstalledAppsViewModel(application)
 
-        appChangeReceiver = AppChangeReceiver {
-            viewModel.loadInstalledApps()
+        appChangeReceiver = AppChangeReceiver { packageName ->
+            lifecycleScope.launch {
+                val policyContent = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
+                if (policyContent != null) {
+                    // Save the policy content to a file
+                    savePrivacyPolicyToFile(packageName, policyContent)
+                    println("Fetched and saved policy for $packageName")
+                } else {
+                    println("Failed to fetch policy for $packageName")
+                }
+            }
         }
 
-        val intentFilter = IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
+        val intentFilter = IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply {
             addDataScheme("package")
         }
 
@@ -63,11 +74,30 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(appChangeReceiver)
     }
 
-    class AppChangeReceiver(private val onAppChanged: () -> Unit) : BroadcastReceiver() {
+    private fun savePrivacyPolicyToFile(packageName: String, policyContent: String) {
+        try {
+            // Create a filename based on the package name
+            val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
+            
+            // Use internal app storage
+            val file = File(filesDir, fileName)
+            
+            // Write the content to the file
+            file.writeText(policyContent)
+            
+            println("Privacy policy saved to: ${file.absolutePath}")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("Failed to save privacy policy: ${e.message}")
+        }
+    }
+
+    class AppChangeReceiver(private val onAppChanged: (String) -> Unit) : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action
-            if (action == Intent.ACTION_PACKAGE_ADDED || action == Intent.ACTION_PACKAGE_REMOVED) {
-                onAppChanged()
+            val packageName = intent?.data?.schemeSpecificPart
+            if (action == Intent.ACTION_PACKAGE_ADDED && packageName != null) {
+                onAppChanged(packageName)
             }
         }
     }

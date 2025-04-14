@@ -60,4 +60,10 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Add OkHttp for network requests
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+
+    // Add Jsoup for HTML parsing
+    implementation("org.jsoup:jsoup:1.16.1")
 }
