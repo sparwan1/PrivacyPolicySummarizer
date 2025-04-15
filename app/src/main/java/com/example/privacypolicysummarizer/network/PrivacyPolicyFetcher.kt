@@ -8,6 +8,10 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import java.util.regex.Pattern
+import android.util.Log
+
 
 object PrivacyPolicyFetcher {
 
@@ -96,22 +100,41 @@ object PrivacyPolicyFetcher {
     /**
      * Extract the privacy policy URL from the Play Store page
      */
-    private fun findPrivacyPolicyUrl(doc: Document): String? {
-        // Look for elements containing "privacy policy" text
-        val privacyLinks = doc.select("a:containsOwn(Privacy Policy), a:containsOwn(privacy policy), a[href*=privacy]")
-        
-        if (privacyLinks.isNotEmpty()) {
-            for (link in privacyLinks) {
-                val href = link.attr("href")
-                if (href.isNotEmpty() && !href.startsWith("#")) {
-                    // If it's a relative URL, make it absolute
-                    return if (href.startsWith("http")) href else "https://play.google.com$href"
-                }
+ private fun findPrivacyPolicyUrl(doc: Document): String? {
+    val pattern = Pattern.compile("AF_initDataCallback\\(\\{key: 'ds:5'.*?data:(\\[.*?\\])\\}\\);", Pattern.DOTALL)
+    val matcher = pattern.matcher(doc.html())
+    Log.d("PrivacyFetcher", "Searching for ds:5 in HTML")
+
+    if (matcher.find()) {
+        val jsonData = matcher.group(1)
+        Log.d("PrivacyFetcher", "Found script block with JSON")
+
+        try {
+            val rootArray = JSONArray(jsonData)
+
+            val policyUrl = (((((rootArray
+                .getJSONArray(1))
+                .getJSONArray(2))
+                .getJSONArray(99))
+                .getJSONArray(0))
+                .getJSONArray(5))
+                .getString(2)
+
+            if (policyUrl.startsWith("http")) {
+                Log.d("PrivacyFetcher", "Extracted policy URL: $policyUrl")
+                return policyUrl
             }
+
+        } catch (e: Exception) {
+            Log.e("PrivacyFetcher", "Error parsing JSON: ${e.message}")
         }
-        
-        return null
+    } else {
+        Log.w("PrivacyFetcher", "ds:5 not found in HTML")
     }
+
+    return null
+}
+
     
     /**
      * Extract plain text from HTML, removing scripts, styles, and HTML tags
