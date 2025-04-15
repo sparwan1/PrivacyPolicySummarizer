@@ -100,40 +100,40 @@ object PrivacyPolicyFetcher {
     /**
      * Extract the privacy policy URL from the Play Store page
      */
- private fun findPrivacyPolicyUrl(doc: Document): String? {
-    val pattern = Pattern.compile("AF_initDataCallback\\(\\{key: 'ds:5'.*?data:(\\[.*?\\])\\}\\);", Pattern.DOTALL)
-    val matcher = pattern.matcher(doc.html())
-    Log.d("PrivacyFetcher", "Searching for ds:5 in HTML")
+    private fun findPrivacyPolicyUrl(doc: Document): String? {
+        val pattern = Pattern.compile( """AF_initDataCallback\(\{.*?key:\s*['"]ds:5['"].*?data:\s*(\[\s*\[.*?\]\s*])\s*,\s*sideChannel""", Pattern.DOTALL)
+        val matcher = pattern.matcher(doc.html())
+        Log.d("PrivacyFetcher", "Searching for ds:5 in HTML")
 
-    if (matcher.find()) {
-        val jsonData = matcher.group(1)
-        Log.d("PrivacyFetcher", "Found script block with JSON")
+        if (matcher.find()) {
+            val jsonData = matcher.group(1)
+            Log.d("PrivacyFetcher", "Found script block with JSON")
 
-        try {
-            val rootArray = JSONArray(jsonData)
+            try {
+                val rootArray = JSONArray(jsonData)
 
-            val policyUrl = (((((rootArray
-                .getJSONArray(1))
-                .getJSONArray(2))
-                .getJSONArray(99))
-                .getJSONArray(0))
-                .getJSONArray(5))
-                .getString(2)
+                val policyUrl = (((((rootArray
+                    .getJSONArray(1))
+                    .getJSONArray(2))
+                    .getJSONArray(99))
+                    .getJSONArray(0))
+                    .getJSONArray(5))
+                    .getString(2)
 
-            if (policyUrl.startsWith("http")) {
-                Log.d("PrivacyFetcher", "Extracted policy URL: $policyUrl")
-                return policyUrl
+                if (policyUrl.startsWith("http")) {
+                    Log.d("PrivacyFetcher", "Extracted policy URL: $policyUrl")
+                    return policyUrl
+                }
+
+            } catch (e: Exception) {
+                Log.e("PrivacyFetcher", "Error parsing JSON: ${e.message}")
             }
-
-        } catch (e: Exception) {
-            Log.e("PrivacyFetcher", "Error parsing JSON: ${e.message}")
+        } else {
+            Log.w("PrivacyFetcher", "ds:5 not found in HTML")
         }
-    } else {
-        Log.w("PrivacyFetcher", "ds:5 not found in HTML")
-    }
 
-    return null
-}
+        return null
+    }
 
     
     /**
