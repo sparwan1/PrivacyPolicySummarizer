@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import java.io.File
 
 
 data class SummaryItem(val riskLevel: String, val justification: String, val snippet: String)
@@ -135,8 +136,46 @@ fun AppSummaryScreen(packageName: String) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            dummySummaryData.forEach { (title, item) ->
-                ExpandableSummaryCard(title = title, item = item)
+            val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
+            val file = File(context.filesDir, fileName)
+            LaunchedEffect(Unit) {
+                println("Looking for file: ${file.absolutePath}")
+                if (file.exists()) {
+                    println("File found. Size = ${file.length()} bytes")
+                } else {
+                    println("Policy file not found for: $packageName")
+                }
+            }
+            val summaryMap = remember {
+                if (file.exists()) {
+                    val text = file.readText()
+                    extractSummaryFromText(text)
+                } else {
+                    emptyMap()
+                }
+            }
+
+            summaryMap.forEach { (title, item) ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = item.snippet,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
     }
@@ -204,4 +243,41 @@ fun ExpandableSummaryCard(title: String, item: SummaryItem) {
             }
         }
     }
+}
+
+// At the bottom of AppSummaryScreen.kt (outside of Composables)
+fun extractSummaryFromText(policyText: String): Map<String, SummaryItem> {
+    val keywordsMap = mapOf(
+        "Email Address" to listOf("email"),
+        "Credit Card Number and Home Address" to listOf("credit card", "billing address", "home address"),
+        "Location" to listOf("location", "gps", "geo"),
+        "Social Security Number" to listOf("ssn", "social security"),
+        "Ads and Marketing" to listOf("ads", "advertising", "marketing"),
+        "Collecting PII of Children" to listOf("children", "child", "under 13", "minor"),
+        "Sharing with Law Enforcement" to listOf("law enforcement", "police", "government", "legal request"),
+        "Policy Change Notification" to listOf("notify", "update", "change", "modification"),
+        "Control of Data" to listOf("access", "delete", "correct", "edit", "opt-out"),
+        "Data Aggregation" to listOf("aggregate", "combine", "analyze", "profile")
+    )
+
+    val summary = mutableMapOf<String, SummaryItem>()
+
+    for ((category, keywords) in keywordsMap) {
+        val match = keywords
+            .mapNotNull { keyword ->
+                val regex = Regex("(.{0,100}$keyword.{0,100})", RegexOption.IGNORE_CASE)
+                regex.find(policyText)?.value
+            }
+            .firstOrNull()
+
+        if (match != null) {
+            summary[category] = SummaryItem(
+                riskLevel = "Yellow", // Default — optional upgrade: NLP scoring later
+                justification = "Found mention of \"$category\" in the privacy policy.",
+                snippet = match.trim()
+            )
+        }
+    }
+
+    return summary
 }
