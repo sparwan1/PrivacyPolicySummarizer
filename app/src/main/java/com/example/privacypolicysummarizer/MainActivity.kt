@@ -33,10 +33,18 @@ import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import android.content.pm.ApplicationInfo
 import kotlinx.coroutines.launch
 import java.io.File
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var appChangeReceiver: AppChangeReceiver
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,11 +53,13 @@ class MainActivity : ComponentActivity() {
 
         appChangeReceiver = AppChangeReceiver { packageName ->
             lifecycleScope.launch {
-                val policyContent = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
-                if (policyContent != null) {
-                    // Save the policy content to a file
-                    savePrivacyPolicyToFile(packageName, policyContent)
+                val policyResult = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
+                if (policyResult != null) {
+                    val (url, content) = policyResult
+                    savePrivacyPolicyToFile(packageName, content)
+                    savePrivacyPolicyUrl(packageName, url)
                     println("Fetched and saved policy for $packageName")
+                    println("Policy URL: $url")
                 } else {
                     println("Failed to fetch policy for $packageName")
                 }
@@ -76,19 +86,26 @@ class MainActivity : ComponentActivity() {
 
     private fun savePrivacyPolicyToFile(packageName: String, policyContent: String) {
         try {
-            // Create a filename based on the package name
             val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
-            
-            // Use internal app storage
             val file = File(filesDir, fileName)
-            
-            // Write the content to the file
             file.writeText(policyContent)
-            
             println("Privacy policy saved to: ${file.absolutePath}")
         } catch (e: Exception) {
             e.printStackTrace()
             println("Failed to save privacy policy: ${e.message}")
+        }
+    }
+
+    // 🔽 Add this below
+    private fun savePrivacyPolicyUrl(packageName: String, url: String) {
+        try {
+            val fileName = "${packageName.replace('.', '_')}_privacy_policy_url.txt"
+            val file = File(filesDir, fileName)
+            file.writeText(url)
+            println("Privacy policy URL saved to: ${file.absolutePath}")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("Failed to save privacy policy URL: ${e.message}")
         }
     }
 

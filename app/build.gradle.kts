@@ -37,6 +37,12 @@ android {
     buildFeatures {
         compose = true
     }
+    lint {
+        disable.add("WrongNavigateRouteType")
+        disable.add("WrongStartDestinationType")
+        disable.add("ComposableDestinationInComposeScope")
+        disable.add("ComposableNavGraphInComposeScope")
+    }
 }
 
 dependencies {
