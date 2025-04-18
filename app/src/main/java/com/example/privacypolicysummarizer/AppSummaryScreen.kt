@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
 import java.io.File
 
 
@@ -109,6 +110,41 @@ val iconMap = mapOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSummaryScreen(packageName: String) {
+    val context = LocalContext.current
+    val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
+    val file = File(context.filesDir, fileName)
+
+    var policyText by remember { mutableStateOf<String?>(null) }
+    var summaryMap by remember { mutableStateOf<Map<String, SummaryItem>>(emptyMap()) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Load or fetch policy at runtime
+    LaunchedEffect(Unit) {
+        if (file.exists()) {
+            println("Loading saved policy for $packageName")
+            val text = file.readText()
+            policyText = text
+            summaryMap = extractSummaryFromText(text)
+        } else {
+            println("Policy not found, fetching for $packageName")
+            isLoading = true
+            val result = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
+            if (result != null) {
+                // Save both .txt and .url
+                file.writeText(result.plainText)
+                File(context.filesDir, "${packageName.replace('.', '_')}_privacy_policy_url.txt").writeText(result.url)
+
+                policyText = result.plainText
+                summaryMap = extractSummaryFromText(result.plainText)
+
+                println("Fetched and saved runtime policy for $packageName")
+            } else {
+                println("Failed to fetch policy for $packageName")
+            }
+            isLoading = false
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(title = { Text("Privacy Policy Summary") })
@@ -120,11 +156,9 @@ fun AppSummaryScreen(packageName: String) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            val context = LocalContext.current
             val appName = try {
-                val packageManager = context.packageManager
-                val appInfo = packageManager.getApplicationInfo(packageName, 0)
-                packageManager.getApplicationLabel(appInfo).toString()
+                val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+                context.packageManager.getApplicationLabel(appInfo).toString()
             } catch (e: Exception) {
                 packageName
             }
@@ -136,44 +170,34 @@ fun AppSummaryScreen(packageName: String) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
-            val file = File(context.filesDir, fileName)
-            LaunchedEffect(Unit) {
-                println("Looking for file: ${file.absolutePath}")
-                if (file.exists()) {
-                    println("File found. Size = ${file.length()} bytes")
-                } else {
-                    println("Policy file not found for: $packageName")
-                }
-            }
-            val summaryMap = remember {
-                if (file.exists()) {
-                    val text = file.readText()
-                    extractSummaryFromText(text)
-                } else {
-                    emptyMap()
-                }
-            }
-
-            summaryMap.forEach { (title, item) ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = item.snippet,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else if (summaryMap.isEmpty()) {
+                Text(
+                    text = "No privacy-related information found in policy.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                summaryMap.forEach { (title, item) ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = item.snippet,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }
@@ -263,20 +287,43 @@ fun extractSummaryFromText(policyText: String): Map<String, SummaryItem> {
     val summary = mutableMapOf<String, SummaryItem>()
 
     for ((category, keywords) in keywordsMap) {
-        val match = keywords
-            .mapNotNull { keyword ->
-                val regex = Regex("(.{0,100}$keyword.{0,100})", RegexOption.IGNORE_CASE)
-                regex.find(policyText)?.value
-            }
-            .firstOrNull()
+        val paragraphs = policyText.split(Regex("\\n\\s*\\n"))
 
-        if (match != null) {
+        val matches = paragraphs.filter { para ->
+            keywords.any { keyword ->
+                keyword in para.lowercase()
+            }
+        }
+
+        if (matches.isNotEmpty()) {
+            val joined = matches.joinToString("\n\n")
             summary[category] = SummaryItem(
-                riskLevel = "Yellow", // Default — optional upgrade: NLP scoring later
-                justification = "Found mention of \"$category\" in the privacy policy.",
-                snippet = match.trim()
+                riskLevel = "Yellow",
+                justification = "Detected ${matches.size} paragraphs related to \"$category\".",
+                snippet = joined
             )
         }
+
+//        val allMatches = keywords.flatMap { keyword ->
+//            val regex = Regex(".{0,300}$keyword.{0,300}", RegexOption.IGNORE_CASE)
+//            regex.findAll(policyText).map { it.value }.toList()
+//        }
+//
+//        if (allMatches.isNotEmpty()) {
+//            val cleanedMatches = allMatches.map { match ->
+//                match.replace("\n", " ")
+//                    .replace(Regex("\\s+"), " ")
+//                    .trim()
+//            }
+//
+//            val combinedText = cleanedMatches.joinToString("\n\n")
+//
+//            summary[category] = SummaryItem(
+//                riskLevel = "Yellow",
+//                justification = "Detected ${cleanedMatches.size} mentions of \"$category\" in the policy.",
+//                snippet = combinedText
+//            )
+//        }
     }
 
     return summary
