@@ -28,6 +28,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
 import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import android.content.pm.ApplicationInfo
@@ -54,7 +56,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-            // 🛡️ Request Usage Access permission if not granted
+
+        val packageNameToNavigate = intent?.getStringExtra("navigate_to_package")
+        val viewModel = InstalledAppsViewModel(application)
+
+        // 🛡️ Request Usage Access permission if not granted
         if (!hasUsageStatsPermission()) {
             requestUsageAccessPermission()
         }
@@ -67,7 +73,7 @@ class MainActivity : ComponentActivity() {
         }
         startService(Intent(this, ForegroundAppService::class.java))
 
-        val viewModel = InstalledAppsViewModel(application)
+        // val viewModel = InstalledAppsViewModel(application)
 
         appChangeReceiver = AppChangeReceiver { packageName ->
             lifecycleScope.launch {
@@ -90,9 +96,23 @@ class MainActivity : ComponentActivity() {
 
         registerReceiver(appChangeReceiver, intentFilter)
 
+        // setContent {
+        //     PrivacyPolicySummarizerTheme {
+        //         AppNavigation(viewModel)
+        //     }
+        // }
+
         setContent {
             PrivacyPolicySummarizerTheme {
-                AppNavigation(viewModel)
+                val navController = rememberNavController()
+    
+                LaunchedEffect(packageNameToNavigate) {
+                    if (!packageNameToNavigate.isNullOrEmpty()) {
+                        navController.navigate("summary/$packageNameToNavigate")
+                    }
+                }
+    
+                AppNavigation(viewModel, navController)
             }
         }
     }
@@ -106,6 +126,10 @@ class MainActivity : ComponentActivity() {
         try {
             val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
             val file = File(filesDir, fileName)
+            if (file.exists()) {
+                println("Privacy policy already saved for $packageName at ${file.absolutePath}")
+                return
+            }
             file.writeText(policyContent)
             println("Privacy policy saved to: ${file.absolutePath}")
         } catch (e: Exception) {
@@ -119,6 +143,10 @@ class MainActivity : ComponentActivity() {
         try {
             val fileName = "${packageName.replace('.', '_')}_privacy_policy_url.txt"
             val file = File(filesDir, fileName)
+            if (file.exists()) {
+                println("Privacy policy already saved for $packageName at ${file.absolutePath}")
+                return
+            }
             file.writeText(url)
             println("Privacy policy URL saved to: ${file.absolutePath}")
         } catch (e: Exception) {
@@ -161,8 +189,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppNavigation(viewModel: InstalledAppsViewModel) {
-    val navController = rememberNavController()
+fun AppNavigation(viewModel: InstalledAppsViewModel, navController: NavHostController) {
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(viewModel = viewModel, onAppClick = { app ->

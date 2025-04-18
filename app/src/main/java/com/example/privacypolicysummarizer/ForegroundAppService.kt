@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import android.app.PendingIntent
 
 class ForegroundAppService : Service() {
 
@@ -55,11 +56,26 @@ class ForegroundAppService : Service() {
             notificationManager.createNotificationChannel(channel)
         }
 
+        // 🔽 Create Intent to open MainActivity with the packageName
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("navigate_to_package", packageName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("App Opened")
-            .setContentText("$appName opened")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .build()
+        .setContentTitle("App Privacy Summary")
+        .setContentText("Get Privacy Summary for $appName?")
+        .setSmallIcon(R.drawable.ic_launcher_foreground)
+        .setContentIntent(pendingIntent) // 👈 attach intent here
+        .setAutoCancel(true)
+        .build()
 
         notificationManager.notify(packageName.hashCode(), notification)
     }
