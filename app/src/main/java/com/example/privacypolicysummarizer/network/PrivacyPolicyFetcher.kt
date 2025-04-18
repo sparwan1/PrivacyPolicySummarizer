@@ -6,7 +6,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 import okhttp3.Dns
 import java.net.InetAddress
@@ -137,17 +136,9 @@ object PrivacyPolicyFetcher {
      * Extract plain text from HTML, removing scripts, styles, and HTML tags
      */
     private fun extractPlainText(doc: Document): String {
-        // Remove script, style elements and hidden elements
-        doc.select("script, style, [style*=display:none], [style*=display: none]").remove()
-        
-        // Get text from body - this removes all HTML tags
-        var text = doc.body().text()
-        
-        // Clean up the text
-        text = text.replace("\\s+".toRegex(), " ") // Replace multiple whitespaces with a single space
-            .replace("(\\.\\s*){2,}".toRegex(), ". ") // Remove multiple periods
-            .trim()
-            
-        return text
+        val elements = doc.body().select("p, li")
+
+        // Join them with two line breaks to simulate paragraphs
+        return elements.joinToString("\n\n") { it.text().trim() }
     }
 }
