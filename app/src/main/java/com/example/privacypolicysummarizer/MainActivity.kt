@@ -36,6 +36,12 @@ import java.io.File
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import android.app.AppOpsManager
+import android.os.Build
+import android.os.Process
+import android.provider.Settings
+import android.content.pm.PackageManager
+
 
 class MainActivity : ComponentActivity() {
 
@@ -48,6 +54,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+            // 🛡️ Request Usage Access permission if not granted
+        if (!hasUsageStatsPermission()) {
+            requestUsageAccessPermission()
+        }
+
+        // 🔔 Step 2: Request POST_NOTIFICATIONS permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+        startService(Intent(this, ForegroundAppService::class.java))
 
         val viewModel = InstalledAppsViewModel(application)
 
@@ -117,6 +135,28 @@ class MainActivity : ComponentActivity() {
                 onAppChanged(packageName)
             }
         }
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), packageName
+            )
+        } else {
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), packageName
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+    
+    private fun requestUsageAccessPermission() {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
     }
 }
 
