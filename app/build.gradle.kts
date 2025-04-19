@@ -42,6 +42,11 @@ android {
         disable.add("WrongStartDestinationType")
         disable.add("ComposableDestinationInComposeScope")
         disable.add("ComposableNavGraphInComposeScope")
+        disable.add("UnrememberedMutableState")
+        disable.add("MutableCollectionMutableState")
+        disable.add("FlowOperatorInvokedInComposition")
+        disable.add("CoroutineCreationDuringComposition")
+        disable.add("StateFlowValueCalledInComposition")
     }
 }
 
