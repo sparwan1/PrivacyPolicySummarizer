@@ -28,6 +28,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
 import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
 import android.content.pm.ApplicationInfo
@@ -36,6 +38,12 @@ import java.io.File
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import android.app.AppOpsManager
+import android.os.Build
+import android.os.Process
+import android.provider.Settings
+import android.content.pm.PackageManager
+
 
 class MainActivity : ComponentActivity() {
 
@@ -48,6 +56,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val packageNameToNavigate = intent?.getStringExtra("navigate_to_package")
+
+        // Request Usage Access permission if not granted
+        if (!hasUsageStatsPermission()) {
+            requestUsageAccessPermission()
+        }
+
+        // Request POST_NOTIFICATIONS permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+        startService(Intent(this, ForegroundAppService::class.java))
 
         val viewModel = InstalledAppsViewModel(application)
 
@@ -74,7 +97,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PrivacyPolicySummarizerTheme {
-                AppNavigation(viewModel)
+                val navController = rememberNavController()
+    
+                LaunchedEffect(packageNameToNavigate) {
+                    if (!packageNameToNavigate.isNullOrEmpty()) {
+                        navController.navigate("summary/$packageNameToNavigate")
+                    }
+                }
+    
+                AppNavigation(viewModel, navController)
             }
         }
     }
@@ -88,6 +119,10 @@ class MainActivity : ComponentActivity() {
         try {
             val fileName = "${packageName.replace('.', '_')}_privacy_policy.txt"
             val file = File(filesDir, fileName)
+            if (file.exists()) {
+                println("Privacy policy already saved for $packageName at ${file.absolutePath}")
+                return
+            }
             file.writeText(policyContent)
             println("Privacy policy saved to: ${file.absolutePath}")
         } catch (e: Exception) {
@@ -101,6 +136,10 @@ class MainActivity : ComponentActivity() {
         try {
             val fileName = "${packageName.replace('.', '_')}_privacy_policy_url.txt"
             val file = File(filesDir, fileName)
+            if (file.exists()) {
+                println("Privacy policy already saved for $packageName at ${file.absolutePath}")
+                return
+            }
             file.writeText(url)
             println("Privacy policy URL saved to: ${file.absolutePath}")
         } catch (e: Exception) {
@@ -118,11 +157,32 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), packageName
+            )
+        } else {
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), packageName
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+    
+    private fun requestUsageAccessPermission() {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+    }
 }
 
 @Composable
-fun AppNavigation(viewModel: InstalledAppsViewModel) {
-    val navController = rememberNavController()
+fun AppNavigation(viewModel: InstalledAppsViewModel, navController: NavHostController) {
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(viewModel = viewModel, onAppClick = { app ->
