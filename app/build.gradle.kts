@@ -72,4 +72,5 @@ dependencies {
 
     // Add Jsoup for HTML parsing
     implementation("org.jsoup:jsoup:1.16.1")
+    implementation("org.json:json:20231013")
 }
