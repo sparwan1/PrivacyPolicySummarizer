@@ -60,12 +60,12 @@ class MainActivity : ComponentActivity() {
         val packageNameToNavigate = intent?.getStringExtra("navigate_to_package")
         val viewModel = InstalledAppsViewModel(application)
 
-        // 🛡️ Request Usage Access permission if not granted
+        // Request Usage Access permission if not granted
         if (!hasUsageStatsPermission()) {
             requestUsageAccessPermission()
         }
 
-        // 🔔 Step 2: Request POST_NOTIFICATIONS permission on Android 13+
+        // Request POST_NOTIFICATIONS permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
@@ -95,12 +95,6 @@ class MainActivity : ComponentActivity() {
         }
 
         registerReceiver(appChangeReceiver, intentFilter)
-
-        // setContent {
-        //     PrivacyPolicySummarizerTheme {
-        //         AppNavigation(viewModel)
-        //     }
-        // }
 
         setContent {
             PrivacyPolicySummarizerTheme {
