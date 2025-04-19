@@ -77,7 +77,9 @@ class ForegroundAppService : Service() {
         .setAutoCancel(true)
         .build()
 
-        notificationManager.notify(packageName.hashCode(), notification)
+        if(packageName != "com.example.privacypolicysummarizer") {
+            notificationManager.notify(packageName.hashCode(), notification)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

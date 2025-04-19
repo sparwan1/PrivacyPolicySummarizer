@@ -58,7 +58,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val packageNameToNavigate = intent?.getStringExtra("navigate_to_package")
-        val viewModel = InstalledAppsViewModel(application)
 
         // Request Usage Access permission if not granted
         if (!hasUsageStatsPermission()) {
@@ -73,7 +72,7 @@ class MainActivity : ComponentActivity() {
         }
         startService(Intent(this, ForegroundAppService::class.java))
 
-        // val viewModel = InstalledAppsViewModel(application)
+        val viewModel = InstalledAppsViewModel(application)
 
         appChangeReceiver = AppChangeReceiver { packageName ->
             lifecycleScope.launch {
