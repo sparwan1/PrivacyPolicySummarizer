@@ -109,7 +109,9 @@ val iconMap = mapOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSummaryScreen(packageName: String) {
+    var isLoading by remember { mutableStateOf(true) }
     var summaryData by remember { mutableStateOf<Map<String, SummaryItem>>(emptyMap()) }
+    val extractedMap = mutableMapOf<String, SummaryItem>()
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(title = { Text("Privacy Policy Summary") })
@@ -137,8 +139,21 @@ fun AppSummaryScreen(packageName: String) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            summaryData.forEach { (title, item) ->
-                ExpandableSummaryCard(title = title, item = item)
+            if (isLoading) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 50.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Analyzing privacy policy...", style = MaterialTheme.typography.bodyLarge)
+                }
+            } else {
+                summaryData.forEach { (title, item) ->
+                    ExpandableSummaryCard(title = title, item = item)
+                }
             }
 
             // Background logging of real extracted data
@@ -198,8 +213,6 @@ fun AppSummaryScreen(packageName: String) {
                             val jsonString = innerText.substring(jsonStart, jsonEnd + 1)
                             val json = JSONObject(jsonString)
 
-                            val extractedMap = mutableMapOf<String, SummaryItem>()
-
                             for (key in json.keys()) {
                                 val obj = json.getJSONObject(key)
                                 val riskLevel = obj.getString("risk_level")
@@ -223,6 +236,8 @@ fun AppSummaryScreen(packageName: String) {
                         println("❌ LLM returned null or failed")
                     }
                 }
+                summaryData = extractedMap
+                isLoading = false
             }
         }
     }
