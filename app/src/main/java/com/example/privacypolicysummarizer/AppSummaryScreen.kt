@@ -19,9 +19,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
+import org.json.JSONObject
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 
 data class SummaryItem(val riskLevel: String, val justification: String, val snippet: String)
 
@@ -77,7 +81,6 @@ val dummySummaryData = mapOf(
         snippet = "User data might be combined and analyzed for trends and insights, impacting privacy."
     )
 )
-
 val riskColorMap = mapOf(
     "Green" to Color(0xFF4CAF50),
     "Yellow" to Color(0xFFFFC107),
@@ -106,6 +109,7 @@ val iconMap = mapOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSummaryScreen(packageName: String) {
+    var summaryData by remember { mutableStateOf<Map<String, SummaryItem>>(emptyMap()) }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(title = { Text("Privacy Policy Summary") })
@@ -133,7 +137,7 @@ fun AppSummaryScreen(packageName: String) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            dummySummaryData.forEach { (title, item) ->
+            summaryData.forEach { (title, item) ->
                 ExpandableSummaryCard(title = title, item = item)
             }
 
@@ -142,18 +146,82 @@ fun AppSummaryScreen(packageName: String) {
             val file = File(context.filesDir, fileName)
 
             LaunchedEffect(Unit) {
-                if (file.exists()) {
-                    val text = file.readText()
-                    val extracted = extractSummaryFromText(text)
-                    println("🧠 Extracted Summary Data for $packageName:")
-                    for ((category, item) in extracted) {
-                        //We have this `item` privacy policy data chunk here for each `category`
-                        println("📌 $category")
-                        println("→ ${item.snippet.take(1000)}") // Log up to 1000 characters per category
-                        println("────────────────────────────────────────")
+                if (!file.exists()) {
+                    println("⚠️ File not found for package: $packageName")
+                    println("🌐 Attempting to fetch policy dynamically...")
+
+                    val policy = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
+                    if (policy != null) {
+                        println("✅ Dynamically fetched policy for $packageName (${policy.toString().length} chars)")
+
+                        file.writeText(policy.toString())
+                    } else {
+                        println("❌ Failed to fetch policy dynamically.")
                     }
-                } else {
-                    println("⚠️ No saved policy file found for $packageName")
+                }
+
+                if (file.exists()) {
+                    val fullText = file.readText()
+//                    val chunks = splitTextIntoChunks(fullText)
+//
+//                    println("📦 Total chunks: ${chunks.size}")
+//
+//                    chunks.forEachIndexed { index, chunk ->
+//                        println("📤 Sending chunk ${index + 1}/${chunks.size} (${chunk.length} chars)")
+
+                    val result = withContext(Dispatchers.IO) {
+                        analyzePolicyViaLLM(fullText)
+                    }
+
+
+                    if (result != null) {
+                        println("✅ Full result from LLM:\n${result.take(2000)}")
+
+                        // Clean out Markdown-style code block if present
+                        val cleanedJson = result
+                            .replace("```json", "")
+                            .replace("```", "")
+                            .trim()
+
+                        try {
+                            val outer = JSONObject(result)
+                            val innerText = outer.getString("response")
+
+                            // Try to locate the actual JSON block inside the response string
+                            val jsonStart = innerText.indexOf('{')
+                            val jsonEnd = innerText.lastIndexOf('}')
+                            if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart) {
+                                println("❌ Could not extract inner JSON from LLM response")
+                                return@LaunchedEffect
+                            }
+
+                            val jsonString = innerText.substring(jsonStart, jsonEnd + 1)
+                            val json = JSONObject(jsonString)
+
+                            val extractedMap = mutableMapOf<String, SummaryItem>()
+
+                            for (key in json.keys()) {
+                                val obj = json.getJSONObject(key)
+                                val riskLevel = obj.getString("risk_level")
+                                val justification = obj.getString("justification")
+                                val snippet = obj.getString("snippet")
+
+                                extractedMap[key] = SummaryItem(
+                                    riskLevel = riskLevel,
+                                    justification = justification,
+                                    snippet = snippet
+                                )
+                            }
+
+                            summaryData = extractedMap
+                        } catch (e: Exception) {
+                            println("❌ JSON parsing failed: ${e.message}")
+                            e.printStackTrace()
+                        }
+
+                    } else {
+                        println("❌ LLM returned null or failed")
+                    }
                 }
             }
         }
@@ -258,4 +326,15 @@ fun extractSummaryFromText(policyText: String): Map<String, SummaryItem> {
     }
 
     return summary
+}
+
+fun splitTextIntoChunks(text: String, chunkSize: Int = 3000): List<String> {
+    val chunks = mutableListOf<String>()
+    var start = 0
+    while (start < text.length) {
+        val end = minOf(start + chunkSize, text.length)
+        chunks.add(text.substring(start, end))
+        start = end
+    }
+    return chunks
 }
