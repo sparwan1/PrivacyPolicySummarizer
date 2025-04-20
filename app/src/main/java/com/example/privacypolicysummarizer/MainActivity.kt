@@ -43,6 +43,10 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.content.pm.PackageManager
+import androidx.core.app.NotificationCompat
+import android.app.PendingIntent
+import android.app.NotificationChannel
+import android.app.NotificationManager
 
 
 class MainActivity : ComponentActivity() {
@@ -76,16 +80,9 @@ class MainActivity : ComponentActivity() {
 
         appChangeReceiver = AppChangeReceiver { packageName ->
             lifecycleScope.launch {
-                val policyResult = PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
-                if (policyResult != null) {
-                    val (url, content) = policyResult
-                    savePrivacyPolicyToFile(packageName, content)
-                    savePrivacyPolicyUrl(packageName, url)
-                    println("Fetched and saved policy for $packageName")
-                    println("Policy URL: $url")
-                } else {
-                    println("Failed to fetch policy for $packageName")
-                }
+                sendInstallNotification(packageName)
+                println("📦 App installed: $packageName — notification sent")
+                PrivacyPolicyFetcher.fetchPrivacyPolicyContent(packageName)
             }
         }
 
@@ -109,6 +106,46 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun sendInstallNotification(packageName: String) {
+        val appName = try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString()
+        } catch (e: Exception) {
+            packageName
+        }
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("navigate_to_package", packageName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val channelId = "app_install_channel"
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "App Install Alerts", NotificationManager.IMPORTANCE_DEFAULT)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle("App Installed")
+            .setContentText("Get Privacy Summary for $appName?")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+//        if (packageName != packageName) return
+        notificationManager.notify(packageName.hashCode(), notification)
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
