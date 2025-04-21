@@ -99,6 +99,23 @@ fun AppSummaryScreen(packageName: String) {
                 }
             } else {
                 if (summaryData.isNotEmpty()) {
+                    val totalPoints = summaryData.values.sumOf { item ->
+                        val scoreStr = riskScoreMap[item.riskLevel] ?: "0/10"
+                        val numericScore = scoreStr.substringBefore("/").toIntOrNull() ?: 0
+                        numericScore
+                    }
+                    
+                    Text(
+                        text = "Privacy Score(User Control): $totalPoints %",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = when {
+                            totalPoints >= summaryData.size * 8 -> Color(0xFF4CAF50)
+                            totalPoints >= summaryData.size * 5 -> Color(0xFFFFC107)
+                            else -> Color(0xFFF44336)
+                        },
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
                     summaryData.forEach { (title, item) ->
                         ExpandableSummaryCard(title = title, item = item)
                     }
