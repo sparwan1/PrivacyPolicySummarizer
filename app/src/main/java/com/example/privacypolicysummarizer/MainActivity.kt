@@ -74,7 +74,9 @@ class MainActivity : ComponentActivity() {
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
             }
         }
-        startService(Intent(this, ForegroundAppService::class.java))
+        if (!ForegroundAppService.isRunning) {
+            startService(Intent(this, ForegroundAppService::class.java))
+        }
 
         val viewModel = InstalledAppsViewModel(application)
 
