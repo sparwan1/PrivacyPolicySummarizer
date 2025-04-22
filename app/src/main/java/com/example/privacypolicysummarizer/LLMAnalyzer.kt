@@ -16,7 +16,7 @@ suspend fun analyzePolicyViaLLM(policyText: String): String? {
         val body = json.toRequestBody(mediaType)
 
         val request = Request.Builder()
-            .url("http://192.168.1.166:8000/analyze_policy")
+            .url("https://privacypolicysummarizer.onrender.com/analyze_policy")
             .post(body)
             .build()
 
