@@ -12,17 +12,28 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import android.app.PendingIntent
+import android.app.Notification
 
 class ForegroundAppService : Service() {
+    companion object {
+        var isRunning = false
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private var lastApp: String? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Start foreground immediately with a basic notification
+        isRunning = true
+        startForeground(1, createOngoingNotification())
+
         handler.post(checkAppRunnable)
         return START_STICKY
     }
-
+    override fun onDestroy() {
+        isRunning = false
+        super.onDestroy()
+    }
     private val checkAppRunnable = object : Runnable {
         override fun run() {
             val currentApp = getForegroundApp()
@@ -33,6 +44,30 @@ class ForegroundAppService : Service() {
             handler.postDelayed(this, 2000) // Check every 2 sec
         }
     }
+
+    private fun createOngoingNotification(): Notification {
+        val channelId = "foreground_service_channel"
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Foreground Service",
+                NotificationManager.IMPORTANCE_MIN // Least intrusive
+            )
+            channel.setShowBadge(false)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        return NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // You can use a transparent icon if needed
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+    }
+
 
     private fun getForegroundApp(): String? {
         val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
