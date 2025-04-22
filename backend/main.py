@@ -117,7 +117,7 @@ Given the following privacy policy, analyze and classify the risk levels for the
 """
     try:
         response = client.chat.completions.create(
-            model="deepseek-r1-distill-llama-70b",  # ✅ DeepSeek model
+            model="llama-3.3-70b-versatile",  # ✅ DeepSeek model
             messages=[
                 {"role": "user", "content": full_prompt}
             ],

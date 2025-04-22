@@ -36,7 +36,9 @@ import android.content.pm.ApplicationInfo
 import kotlinx.coroutines.launch
 import java.io.File
 import okhttp3.OkHttpClient
-import okhttp3.Request
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import java.util.concurrent.TimeUnit
 import android.app.AppOpsManager
 import android.os.Build
@@ -258,6 +260,26 @@ fun HomeScreen(viewModel: InstalledAppsViewModel, onAppClick: (ApplicationInfo) 
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEEF7EE)),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🔒 PrivacyPolicySummarizer does not collect or share any of your data. All analysis is performed locally or with user-consented external APIs solely for informational purposes.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
