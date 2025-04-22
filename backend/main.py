@@ -3,9 +3,23 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 import openai
+from fastapi.middleware.cors import CORSMiddleware
 
-# Load environment variables
 load_dotenv()
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI"}
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Set up Groq-compatible OpenAI client
 client = openai.OpenAI(
