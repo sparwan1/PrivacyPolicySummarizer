@@ -41,80 +41,65 @@ async def analyze_policy(data: PolicyRequest):
     print(f"🧠 Policy text length: {len(truncated_text)} chars")
 
     full_prompt = f"""
-Given the following privacy policy, analyze and classify the risk levels for the 10 factors listed below using the definitions provided.
+   Analyze the privacy policy below and assign risk levels for the 10 factors using the definitions provided.
+   ---
+   #Privacy Policy:
+   {truncated_text}
+   ---
 
----
+   #Risk Level Criteria:
+   1. Email Address
+   Question to answer: How does the site handle your email address?
+   - Green: Not collected | Yellow: Used for the intended service | Red: Shared w/ third parties
 
-### Privacy Policy:
-{truncated_text}
+   2. Credit Card Number and Home Address
+   Question to answer: How does the site handle your credit card/payment information and home address?
+   - Green: Not asked for payment/transaction details and address | Yellow: Asked but used for the intended service | Red: Asked and also shared w/ third parties
 
----
+   3. Social Security Number
+   Question to answer:  How does the site handle your SSN?
+   - Green: Not asked for | Yellow: Used for the intended service | Red: Shared w/ third parties
 
-### Risk Level Criteria:
+   4. Ads and Marketing
+   Question to answer: Does the site use or share your PII for marketing purposes?
+   - Green: PII not used | Yellow: PII used for marketing | Red: PII shared for marketing
 
-1. *Email Address*  
-   - Green: Not asked for  
-   - Yellow: Used for the intended service  
-   - Red: Shared with third parties  
+   5. Location
+   Question to answer: Does the site track or share your location?
+   - Green: Not tracked | Yellow: Used for the intended service only | Red: shared w/ third parties 
 
-2. *Credit Card Number and Home Address*  
-   - Green: Not asked for  
-   - Yellow: Used for the intended service  
-   - Red: Shared with third parties  
+   6. Collecting PII of Children
+   Question to answer: Does the site collect personally identifiable information from children under 13?
+   - Green: Not collected | Yellow: Not mentioned | Red: Collected
 
-3. *Social Security Number*  
-   - Green: Not asked for  
-   - Yellow: Used for the intended service  
-   - Red: Shared with third parties  
+   7. Sharing with Law Enforcement  
+   Question to answer: Does the site share your information with law enforcement?
+   - Green: PII not recorded | Yellow: Legal documents required | Red: Legal documents not required  
 
-4. *Ads and Marketing*  
-   - Green: PII not used for marketing  
-   - Yellow: PII used for marketing  
-   - Red: PII shared for marketing  
+   8. Policy Change Notification 
+   Question to answer: Does the site notify you or allow you to opt out when their privacy policy changes?
+   - Green: Posted with opt-out option | Yellow: Posted without opt-out | Red: Not posted
 
-5. *Location*  
-   - Green: Not tracked  
-   - Yellow: Used for the intended service  
-   - Red: Shared with third parties  
+   9. Control of Data
+   Question to ask: Does the site allow you to edit or delete your information from its records?
+   - Green: Edit and delete options available | Yellow: Edit only | Red: No edit/delete options
 
-6. *Collecting PII of Children*  
-   - Green: Not collected  
-   - Yellow: Not mentioned  
-   - Red: Collected  
+   10. Data Aggregation*  
+   Question to ask: Does the site collect or share aggregated data related to your identity or behavior?
+   - Green: Not aggregated | Yellow: Aggregated without PII | Red: Aggregated with PII 
+   ---
 
-7. *Sharing with Law Enforcement*  
-   - Green: PII not recorded  
-   - Yellow: Legal documents required  
-   - Red: Legal documents not required  
-
-8. *Policy Change Notification*  
-   - Green: Posted with opt-out option  
-   - Yellow: Posted without opt-out  
-   - Red: Not posted  
-
-9. *Control of Data*  
-   - Green: Edit and delete options available  
-   - Yellow: Edit only  
-   - Red: No edit/delete options  
-
-10. *Data Aggregation*  
-   - Green: Not aggregated  
-   - Yellow: Aggregated without PII  
-   - Red: Aggregated with PII  
-
----
-
-### Output Format (JSON preferred):
-```json
-{{
-  "Email Address": {{
-    "risk_level": "Red",
-    "justification": "The policy states that email addresses are shared with third-party partners.",
-    "snippet": "We may share your email with third-party advertisers."
-  }},
-  ...
-}}
-"""
+   #Output Format (in JSON):
+   ```json
+   {{
+   "Email Address": {{
+      "risk_level": "Red",
+      "justification": "The policy states that...",
+      "snippet": "We may share your email with third-party advertisers."
+   }},
+   ...
+   }}
+   """
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",  # ✅ DeepSeek model
