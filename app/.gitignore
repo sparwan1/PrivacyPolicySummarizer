@@ -1,1 +1,12 @@
 /build
+/release
+/debug
+/lint-results.xml
+.externalNativeBuild
+.cxx
+*.ap_
+*.aab
+*.apk
+output.json
+output-metadata.json
+/captures
