@@ -2,7 +2,7 @@
 
 We all have faced issues when it comes to data being collected by different apps. The PrivacyPolicySummarizer app aims to resolve the issue by summarizing privacy policies for users.
 
-[![Watch the demo](https://img.shields.io/badge/Watch-Demo-blue?style=for-the-badge)]([https://drive.google.com/file/d/FILE_ID/view?usp=sharing](https://drive.google.com/file/d/1ut8o1DXr-lAJ8Fgmv1d28DjLdLWCGRT9/view?usp=sharing))
+[![Watch the demo](https://img.shields.io/badge/Watch-Demo-blue?style=for-the-badge)](https://drive.google.com/file/d/1ut8o1DXr-lAJ8Fgmv1d28DjLdLWCGRT9/view?usp=sharing)
 
 ### To use the app:
 - Follow the instructions mentioned on [this doc](https://docs.google.com/document/d/1KNhTVfGqgAhE0ms17-zGvL4-atIk7gLuSWWqDpf87ow/edit?usp=drivesdk)
