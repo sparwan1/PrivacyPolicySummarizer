@@ -28,7 +28,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.privacypolicysummarizer.network.PrivacyPolicyFetcher
 import com.example.privacypolicysummarizer.ui.theme.PrivacyPolicySummarizerTheme
